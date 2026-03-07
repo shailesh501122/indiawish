@@ -34,10 +34,7 @@ def fix_users_schema():
             # 1. Verification Level
             if 'verification_level' not in columns:
                 print("Migration: Adding 'verification_level' to users table...")
-                try:
-                    conn.execute(text("CREATE TYPE verification_level_enum AS ENUM ('unverified', 'phone', 'id', 'top_seller');"))
-                except: pass # Enum type might already exist
-                conn.execute(text("ALTER TABLE users ADD COLUMN verification_level verification_level_enum DEFAULT 'unverified';"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN verification_level VARCHAR DEFAULT 'unverified';"))
                 conn.commit()
 
             # 2. Is Elite

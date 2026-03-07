@@ -23,10 +23,7 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_seen = Column(DateTime(timezone=True), nullable=True)
     is_elite = Column(Boolean, default=False)
-    verification_level = Column(
-        Enum("unverified", "phone", "id", "top_seller", name="verification_level_enum"),
-        default="unverified"
-    ) # Badge level: unverified -> phone -> id -> top_seller
+    verification_level = Column(String, default="unverified") # Badge level: unverified -> phone -> id -> top_seller
 
     # Followers / Following
     followers_rel = relationship(
