@@ -22,70 +22,76 @@ socket_manager = SocketManager(app=app, cors_allowed_origins="*")
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
-# Fix for missing columns in existing 'users' table (Automated Migration)
-def fix_users_schema():
+# Comprehensive Fix for missing columns (Automated Migration)
+def fix_all_schemas():
     from sqlalchemy import text
     try:
         with engine.connect() as conn:
-            # Check existing columns
-            result = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"))
-            columns = [row[0] for row in result]
+            # 1. FIX USERS TABLE
+            try:
+                result = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"))
+                columns = [row[0] for row in result]
+                if 'verification_level' not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN verification_level VARCHAR DEFAULT 'unverified';"))
+                if 'is_elite' not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN is_elite BOOLEAN DEFAULT FALSE;"))
+                if 'last_seen' not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN last_seen TIMESTAMP WITH TIME ZONE;"))
+                conn.commit()
+            except Exception as e:
+                print(f"Users table migration error: {e}")
             
-            # 1. Verification Level
-            if 'verification_level' not in columns:
-                print("Migration: Adding 'verification_level' to users table...")
-                conn.execute(text("ALTER TABLE users ADD COLUMN verification_level VARCHAR DEFAULT 'unverified';"))
+            # 2. FIX LISTINGS TABLE
+            try:
+                result = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'listings'"))
+                columns = [row[0] for row in result]
+                if 'properties' not in columns:
+                    conn.execute(text("ALTER TABLE listings ADD COLUMN properties JSONB DEFAULT '{}';"))
+                if 'location' not in columns:
+                    conn.execute(text("ALTER TABLE listings ADD COLUMN location VARCHAR;"))
+                if 'listing_type' not in columns:
+                    conn.execute(text("ALTER TABLE listings ADD COLUMN listing_type VARCHAR DEFAULT 'sell';"))
+                if 'rent_price' not in columns:
+                    conn.execute(text("ALTER TABLE listings ADD COLUMN rent_price FLOAT;"))
+                if 'rent_period' not in columns:
+                    conn.execute(text("ALTER TABLE listings ADD COLUMN rent_period VARCHAR;"))
+                if 'video_url' not in columns:
+                    conn.execute(text("ALTER TABLE listings ADD COLUMN video_url VARCHAR;"))
+                if 'subcategory_id' not in columns:
+                    conn.execute(text("ALTER TABLE listings ADD COLUMN subcategory_id VARCHAR;"))
+                if 'subcategory' not in columns:
+                    conn.execute(text("ALTER TABLE listings ADD COLUMN subcategory VARCHAR;"))
                 conn.commit()
+            except Exception as e:
+                print(f"Listings table migration error: {e}")
 
-            # 2. Is Elite
-            if 'is_elite' not in columns:
-                print("Migration: Adding 'is_elite' to users table...")
-                conn.execute(text("ALTER TABLE users ADD COLUMN is_elite BOOLEAN DEFAULT FALSE;"))
+            # 3. FIX CATEGORIES TABLE
+            try:
+                result = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'categories'"))
+                columns = [row[0] for row in result]
+                if 'filter_config' not in columns:
+                    conn.execute(text("ALTER TABLE categories ADD COLUMN filter_config JSONB DEFAULT '[]';"))
+                if 'subcategories' not in columns:
+                    conn.execute(text("ALTER TABLE categories ADD COLUMN subcategories JSONB DEFAULT '[]';"))
                 conn.commit()
+            except Exception as e:
+                print(f"Categories table migration error: {e}")
+            
+            # 4. FIX PROPERTIES TABLE
+            try:
+                result = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'properties'"))
+                columns = [row[0] for row in result]
+                if 'active_status' not in columns:
+                    conn.execute(text("ALTER TABLE properties ADD COLUMN active_status BOOLEAN DEFAULT TRUE;"))
+                conn.commit()
+            except Exception as e:
+                print(f"Properties table migration error: {e}")
 
-            # 3. Last Seen
-            if 'last_seen' not in columns:
-                print("Migration: Adding 'last_seen' to users table...")
-                conn.execute(text("ALTER TABLE users ADD COLUMN last_seen TIMESTAMP WITH TIME ZONE;"))
-                conn.commit()
+            print("Migration: All schema checks completed.")
     except Exception as e:
-        print(f"User schema migration error: {e}")
+        print(f"Migration error: {e}")
 
-# Fix for missing categories (Auto-Seed)
-def seed_categories():
-    from app.models.marketplace import Category
-    from app.db.session import SessionLocal
-    import uuid
-    
-    db = SessionLocal()
-    try:
-        count = db.query(Category).count()
-        if count == 0:
-            print("Migration: Seeding default categories...")
-            default_cats = [
-                {"name": "Mobile", "icon": "smartphone", "description": "Phones and tablets"},
-                {"name": "Electronics", "icon": "kitchen", "description": "Gadgets and tech"},
-                {"name": "Vehicles", "icon": "directions_car", "description": "Cars and bikes"},
-                {"name": "Real Estate", "icon": "home", "description": "Properties and land"},
-                {"name": "Fashion", "icon": "checkroom", "description": "Clothes and accessories"},
-            ]
-            for cat in default_cats:
-                db.add(Category(
-                    id=str(uuid.uuid4()),
-                    name=cat["name"],
-                    icon=cat["icon"],
-                    description=cat["description"],
-                    active_status=True
-                ))
-            db.commit()
-            print(f"Migration: Seeded {len(default_cats)} categories.")
-    except Exception as e:
-        print(f"Seeding error: {e}")
-    finally:
-        db.close()
-
-fix_users_schema()
-seed_categories()
+fix_all_schemas()
 
 # CORS configuration – allow all origins during development
 app.add_middleware(
