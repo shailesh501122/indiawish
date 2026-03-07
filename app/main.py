@@ -87,11 +87,74 @@ def fix_all_schemas():
             except Exception as e:
                 print(f"Properties table migration error: {e}")
 
+            # 5. FIX SYSTEM_CONFIG TABLE
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS system_config (
+                        key VARCHAR PRIMARY KEY,
+                        value TEXT NOT NULL,
+                        description VARCHAR
+                    );
+                """))
+                conn.commit()
+            except Exception as e:
+                print(f"SystemConfig table creation error: {e}")
+
             print("Migration: All schema checks completed.")
     except Exception as e:
         print(f"Migration error: {e}")
 
+# Fix for missing categories (Auto-Seed)
+def seed_dynamic_data():
+    from app.models.marketplace import Category
+    from app.models.config import SystemConfig
+    from app.db.session import SessionLocal
+    import uuid
+    
+    db = SessionLocal()
+    try:
+        # 1. Categories
+        if db.query(Category).count() == 0:
+            print("Migration: Seeding default categories...")
+            default_cats = [
+                {"id": "ebd6634a-6b63-4e5b-9a0e-ea1c691d3fc7", "name": "Vehicles", "icon": "directions_car", "description": "Cars and bikes"},
+                {"id": "5b1893f3-3b50-4857-92f4-679d7ecb2bbf", "name": "Services", "icon": "work", "description": "Rentals and services"},
+                {"id": str(uuid.uuid4()), "name": "Mobile", "icon": "smartphone", "description": "Phones and tablets"},
+                {"id": str(uuid.uuid4()), "name": "Electronics", "icon": "kitchen", "description": "Gadgets and tech"},
+                {"id": str(uuid.uuid4()), "name": "Real Estate", "icon": "home", "description": "Properties and land"},
+                {"id": str(uuid.uuid4()), "name": "Fashion", "icon": "checkroom", "description": "Clothes and accessories"},
+            ]
+            for cat in default_cats:
+                db.add(Category(
+                    id=cat["id"],
+                    name=cat["name"],
+                    icon=cat["icon"],
+                    description=cat["description"],
+                    active_status=True
+                ))
+            db.commit()
+
+        # 2. System Config
+        if db.query(SystemConfig).count() == 0:
+            print("Migration: Seeding default system configuration...")
+            configs = [
+                {"key": "app_name", "value": "IndiaWish", "description": "Display name of the application"},
+                {"key": "search_hint", "value": "Find Cars, Mobile Phones and more...", "description": "Hint text for home search bar"},
+                {"key": "primary_color", "value": "0xFF002F5F", "description": "Primary brand color (hex)"},
+                {"key": "secondary_color", "value": "0xFF7F8C8D", "description": "Secondary brand color"},
+                {"key": "support_email", "value": "support@indiawish.com", "description": "Contact email"},
+            ]
+            for cfg in configs:
+                db.add(SystemConfig(**cfg))
+            db.commit()
+            
+    except Exception as e:
+        print(f"Seeding error: {e}")
+    finally:
+        db.close()
+
 fix_all_schemas()
+seed_dynamic_data()
 
 # CORS configuration – allow all origins during development
 app.add_middleware(
