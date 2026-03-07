@@ -22,6 +22,40 @@ socket_manager = SocketManager(app=app, cors_allowed_origins="*")
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
+# Fix for missing columns in existing 'users' table (Automated Migration)
+def fix_users_schema():
+    from sqlalchemy import text
+    try:
+        with engine.connect() as conn:
+            # Check existing columns
+            result = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"))
+            columns = [row[0] for row in result]
+            
+            # 1. Verification Level
+            if 'verification_level' not in columns:
+                print("Migration: Adding 'verification_level' to users table...")
+                try:
+                    conn.execute(text("CREATE TYPE verification_level_enum AS ENUM ('unverified', 'phone', 'id', 'top_seller');"))
+                except: pass # Enum type might already exist
+                conn.execute(text("ALTER TABLE users ADD COLUMN verification_level verification_level_enum DEFAULT 'unverified';"))
+                conn.commit()
+
+            # 2. Is Elite
+            if 'is_elite' not in columns:
+                print("Migration: Adding 'is_elite' to users table...")
+                conn.execute(text("ALTER TABLE users ADD COLUMN is_elite BOOLEAN DEFAULT FALSE;"))
+                conn.commit()
+
+            # 3. Last Seen
+            if 'last_seen' not in columns:
+                print("Migration: Adding 'last_seen' to users table...")
+                conn.execute(text("ALTER TABLE users ADD COLUMN last_seen TIMESTAMP WITH TIME ZONE;"))
+                conn.commit()
+    except Exception as e:
+        print(f"Migration error (this is normal if using SQLite): {e}")
+
+fix_users_schema()
+
 # CORS configuration – allow all origins during development
 app.add_middleware(
     CORSMiddleware,
