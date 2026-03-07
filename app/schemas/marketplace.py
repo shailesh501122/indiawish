@@ -51,7 +51,7 @@ class ListingBase(BaseModel):
     title: str
     description: str
     price: float
-    category_id: str
+    category_id: Optional[str] = None
     subcategory: Optional[str] = None
     subcategory_id: Optional[str] = None
     location: Optional[str] = None
