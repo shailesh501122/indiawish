@@ -1,5 +1,5 @@
 import json
-from app.db.session import SessionLocal, engine, Base
+from app.db.session import SessionLocal, engine
 from app.models.marketplace import Category
 import uuid
 
@@ -12,19 +12,29 @@ categories = [
         "name": "Mobile",
         "description": "Mobile phones and tablets",
         "icon": "smartphone",
-        "subcategories": ["Mobile phone", "Accessories", "Tablets"]
+        "subcategories": ["Mobile phone", "Accessories", "Tablets"],
+        "filter_config": [
+            {"key": "brand", "label": "Brand", "type": "select", "options": ["Apple", "Samsung", "Google", "OnePlus", "Xiaomi"]},
+            {"key": "storage", "label": "Storage", "type": "select", "options": ["64GB", "128GB", "256GB", "512GB"]}
+        ]
     },
     {
         "name": "Electronics",
         "description": "TVs, Laptops, Cameras",
         "icon": "kitchen",
-        "subcategories": ["TV", "Laptop", "Camera", "Home Appliance"]
+        "subcategories": ["TV", "Laptop", "Camera", "Home Appliance"],
+        "filter_config": []
     },
     {
         "name": "Vehicles",
         "description": "Cars and bikes",
         "icon": "directions_car",
-        "subcategories": ["Car", "Bike", "Commercial Vehicle"]
+        "subcategories": ["Car", "Bike", "Commercial Vehicle"],
+        "filter_config": [
+            {"key": "brand", "label": "Brand", "type": "select", "options": ["Tesla", "Toyota", "Honda", "BMW", "Mercedes", "Ford"]},
+            {"key": "fuel_type", "label": "Fuel Type", "type": "select", "options": ["Petrol", "Diesel", "Electric", "Hybrid"]},
+            {"key": "transmission", "label": "Transmission", "type": "select", "options": ["Automatic", "Manual"]}
+        ]
     }
 ]
 
@@ -39,7 +49,8 @@ try:
             name=cat["name"],
             description=cat["description"],
             icon=cat["icon"],
-            subcategories=cat["subcategories"]
+            subcategories=cat["subcategories"],
+            filter_config=cat.get("filter_config", [])
         )
         db.add(c)
     db.commit()

@@ -15,6 +15,7 @@ class Category(Base):
     icon = Column(String)
     subcategories = Column(JSON, default=list) # Deprecated, use subcategory_list
     active_status = Column(Boolean, default=True)
+    filter_config = Column(JSON, default=list) # List of filter definitions
     
     listings = relationship("Listing", back_populates="category")
     subcategory_list = relationship("SubCategory", back_populates="category")
@@ -45,6 +46,7 @@ class Listing(Base):
     subcategory = Column(String, nullable=True) # Deprecated, use subcategory_id
     subcategory_id = Column(String, ForeignKey("subcategories.id"), nullable=True)
     location = Column(String, nullable=True)
+    properties = Column(JSON, default=dict) # Key-value pairs like {"brand": "Tesla"}
     user_id = Column(String, ForeignKey("users.id"))
     
     category = relationship("Category", back_populates="listings")

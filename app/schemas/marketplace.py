@@ -31,6 +31,7 @@ class CategoryBase(BaseModel):
     description: Optional[str] = None
     icon: Optional[str] = None
     subcategories: Optional[List[str]] = []
+    filter_config: Optional[List[dict]] = []
 
 class CategoryRead(CategoryBase):
     id: str
@@ -46,6 +47,7 @@ class CategoryUpdate(BaseModel):
     description: Optional[str] = None
     icon: Optional[str] = None
     subcategories: Optional[List[str]] = None
+    filter_config: Optional[List[dict]] = None
 
 class ListingBase(BaseModel):
     title: str
@@ -55,6 +57,7 @@ class ListingBase(BaseModel):
     subcategory: Optional[str] = None
     subcategory_id: Optional[str] = None
     location: Optional[str] = None
+    properties: dict = {}
     images: List[str] = []
 
 class ListingCreate(ListingBase):
