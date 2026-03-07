@@ -58,6 +58,9 @@ class ListingBase(BaseModel):
     subcategory_id: Optional[str] = None
     location: Optional[str] = None
     properties: dict = {}
+    listing_type: str = "sell"
+    rent_price: Optional[float] = None
+    rent_period: Optional[str] = None
     images: List[str] = []
 
 class ListingCreate(ListingBase):

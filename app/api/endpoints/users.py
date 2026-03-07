@@ -12,6 +12,9 @@ from ...models.marketplace import Listing, Category
 
 router = APIRouter()
 
+# In-memory OTP store (use Redis in production)
+_otp_store: dict = {}
+
 class ProfileUpdate(BaseModel):
     firstName: Optional[str] = None
     lastName: Optional[str] = None
@@ -52,7 +55,8 @@ def update_profile(
             "last_seen": current_user.last_seen,
             "follower_count": follower_count,
             "following_count": following_count,
-            "is_elite": getattr(current_user, 'is_elite', False) or False
+            "is_elite": getattr(current_user, 'is_elite', False) or False,
+            "verification_level": getattr(current_user, 'verification_level', 'unverified') or 'unverified'
         }
     except Exception as e:
         db.rollback()
@@ -95,8 +99,49 @@ def get_me(db: Session = Depends(get_db), current_user: User = Depends(get_curre
         "last_seen": current_user.last_seen,
         "follower_count": follower_count,
         "following_count": following_count,
-        "is_elite": getattr(current_user, 'is_elite', False) or False
+        "is_elite": getattr(current_user, 'is_elite', False) or False,
+        "verification_level": getattr(current_user, 'verification_level', 'unverified') or 'unverified'
     }
+
+
+# ─── Phone Verification ────────────────────────────────────────────────────────
+
+class SendOtpRequest(BaseModel):
+    phone_number: str
+
+class VerifyOtpRequest(BaseModel):
+    phone_number: str
+    otp: str
+
+@router.post("/verify/phone/send")
+def send_phone_otp(
+    request: SendOtpRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Sends a 6-digit OTP to the given phone number. In production, integrate SMS (Twilio/MSG91)."""
+    import random
+    otp = str(random.randint(100000, 999999))
+    _otp_store[request.phone_number] = otp
+    # TODO: Send via MSG91 / Twilio SMS API
+    print(f"[OTP] Phone={request.phone_number} OTP={otp}")
+    return {"message": f"OTP sent to {request.phone_number}", "debug_otp": otp}
+
+@router.post("/verify/phone/confirm")
+def confirm_phone_otp(
+    request: VerifyOtpRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Validates the OTP and upgrades the user's verification_level to 'phone'."""
+    stored_otp = _otp_store.get(request.phone_number)
+    if stored_otp != request.otp:
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    
+    current_user.verification_level = "phone"
+    current_user.phone_number = request.phone_number
+    db.commit()
+    _otp_store.pop(request.phone_number, None)
+    return {"message": "Phone verified successfully", "verification_level": "phone"}
 
 @router.get("/{user_id}/profile", response_model=SellerProfile)
 def get_seller_profile(

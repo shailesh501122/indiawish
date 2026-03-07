@@ -47,6 +47,9 @@ class Listing(Base):
     subcategory_id = Column(String, ForeignKey("subcategories.id"), nullable=True)
     location = Column(String, nullable=True)
     properties = Column(JSON, default=dict) # Key-value pairs like {"brand": "Tesla"}
+    listing_type = Column(String, default="sell") # 'sell' or 'rent'
+    rent_price = Column(Float, nullable=True)      # Price per rent_period
+    rent_period = Column(String, nullable=True)    # 'daily', 'weekly', 'monthly'
     user_id = Column(String, ForeignKey("users.id"))
     
     category = relationship("Category", back_populates="listings")

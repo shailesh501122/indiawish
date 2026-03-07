@@ -37,6 +37,7 @@ class UserResponse(BaseModel):
     follower_count: int = 0
     following_count: int = 0
     is_elite: bool = False
+    verification_level: str = "unverified"
 
     class Config:
         from_attributes = True

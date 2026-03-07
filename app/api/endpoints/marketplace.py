@@ -61,6 +61,50 @@ def get_recent_interactions(
 
 # ── Generic routes LAST (so they don't swallow /my, /home/fresh, etc.) ──
 
+# \u2500\u2500\u2500 Feature: AI Price Suggestion \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+from pydantic import BaseModel as PydanticBaseModel
+
+class PriceSuggestRequest(PydanticBaseModel):
+    category_id: str
+    subcategory_id: Optional[str] = None
+    location: Optional[str] = None
+
+@router.post("/price-suggest")
+def suggest_price(
+    req: PriceSuggestRequest,
+    db: Session = Depends(get_db)
+):
+    """Returns a price range for a listing based on similar active listings."""
+    query = db.query(Listing).filter(
+        Listing.status == "Active",
+        Listing.active_status == True,
+        Listing.category_id == req.category_id
+    )
+    if req.subcategory_id:
+        query = query.filter(Listing.subcategory_id == req.subcategory_id)
+    
+    prices = [l.price for l in query.all() if l.price and l.price > 0]
+    
+    if not prices:
+        return {"message": "Not enough data", "min_price": 0, "max_price": 0, "recommended_price": 0, "similar_count": 0}
+    
+    prices.sort()
+    # Remove outliers: use 10th and 90th percentile
+    lo = int(len(prices) * 0.10)
+    hi = int(len(prices) * 0.90) + 1
+    trimmed = prices[lo:hi] if len(prices) > 5 else prices
+    
+    min_price = int(min(trimmed))
+    max_price = int(max(trimmed))
+    recommended = int(sum(trimmed) / len(trimmed))
+    
+    return {
+        "min_price": min_price,
+        "max_price": max_price,
+        "recommended_price": recommended,
+        "similar_count": len(prices)
+    }
+
 @router.get("", response_model=List[ListingRead])
 def get_listings(
     request: Request,
