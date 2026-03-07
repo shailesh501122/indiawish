@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional, Any, Dict
 from ...db.session import get_db
 from ...models.marketplace import Listing, Category, Property
 from ...schemas.marketplace import ListingRead, ListingCreate, CategoryRead, PropertyRead, PropertyCreate
