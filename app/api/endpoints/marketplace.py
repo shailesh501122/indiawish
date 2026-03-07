@@ -110,9 +110,10 @@ def get_listings(
     request: Request,
     category_id: Optional[str] = None,
     subcategory_id: Optional[str] = None,
+    listing_type: Optional[str] = None,
+    has_video: Optional[bool] = False,
     db: Session = Depends(get_db)
 ):
-    print(f"DEBUG: Entered get_listings (category_id: {category_id}, subcategory_id: {subcategory_id})")
     query = db.query(Listing).filter(Listing.status == "Active", Listing.active_status == True)
     
     if category_id:
@@ -120,18 +121,20 @@ def get_listings(
     
     if subcategory_id:
         query = query.filter(Listing.subcategory_id == subcategory_id)
+
+    if listing_type:
+        query = query.filter(Listing.listing_type == listing_type)
+
+    if has_video:
+        query = query.filter(Listing.video_url != None)
         
     # Dynamic property filtering
-    # Any query parameter that is not category_id, subcategory_id or request internals is treated as a property filter
     params = request.query_params
     for key, value in params.items():
-        if key not in ["category_id", "subcategory_id"]:
-            # SQLITE or POSTGRES handle JSON differently but SQLAlchemy abstracts it mostly
-            # We assume properties is a JSON/JSONB column
+        if key not in ["category_id", "subcategory_id", "listing_type", "has_video"]:
             query = query.filter(Listing.properties[key].astext == value)
             
     listings = query.all()
-    print(f"DEBUG: returning {len(listings)} active listings")
     return listings
 
 @router.get("/{listing_id}", response_model=ListingRead)

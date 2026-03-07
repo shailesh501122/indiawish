@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import traceback
 import os
-from .api.endpoints import auth, marketplace, properties, ai, users, admin, chat, config
+from .api.endpoints import auth, marketplace, properties, ai, users, admin, chat, config, escrow
 from .routers import upload
 from .db.session import engine, Base
 from fastapi_socketio import SocketManager
@@ -66,6 +66,7 @@ app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(config.router, prefix="/api/config", tags=["config"])
+app.include_router(escrow.router, prefix="/api/escrow", tags=["escrow"])
 app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
 
 # Static files for uploads

@@ -61,6 +61,7 @@ class ListingBase(BaseModel):
     listing_type: str = "sell"
     rent_price: Optional[float] = None
     rent_period: Optional[str] = None
+    video_url: Optional[str] = None
     images: List[str] = []
 
 class ListingCreate(ListingBase):

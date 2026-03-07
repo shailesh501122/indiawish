@@ -40,3 +40,27 @@ async def upload_images(files: List[UploadFile] = File(...)):
             raise HTTPException(status_code=500, detail=f"Failed to upload '{file.filename}': {str(e)}")
             
     return {"urls": uploaded_urls}
+
+@router.post("/video")
+async def upload_video(file: UploadFile = File(...)):
+    """
+    Accepts a single video file and saves it to the local `uploads` directory.
+    """
+    if not file:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    if not file.content_type.startswith("video/"):
+        raise HTTPException(status_code=400, detail="File is not a video.")
+    
+    # Generate a unique filename
+    file_extension = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        return {"url": f"/uploads/{unique_filename}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to upload video: {str(e)}")

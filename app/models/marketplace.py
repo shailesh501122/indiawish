@@ -50,6 +50,7 @@ class Listing(Base):
     listing_type = Column(String, default="sell") # 'sell' or 'rent'
     rent_price = Column(Float, nullable=True)      # Price per rent_period
     rent_period = Column(String, nullable=True)    # 'daily', 'weekly', 'monthly'
+    video_url = Column(String, nullable=True)      # URL to short video reel
     user_id = Column(String, ForeignKey("users.id"))
     
     category = relationship("Category", back_populates="listings")
@@ -94,3 +95,16 @@ class ListingInteraction(Base):
     listing_id = Column(String, ForeignKey("listings.id"), nullable=False)
     interaction_type = Column(String) # 'view', 'like'
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class Escrow(Base):
+    __tablename__ = "escrows"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    listing_id = Column(String, ForeignKey("listings.id"), nullable=False)
+    buyer_id = Column(String, ForeignKey("users.id"), nullable=False)
+    seller_id = Column(String, ForeignKey("users.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    status = Column(String, default="held") # held, released, disputed, refunded
+    upi_ref = Column(String, nullable=True) # Transaction reference from UPI
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
