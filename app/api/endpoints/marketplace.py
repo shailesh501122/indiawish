@@ -62,9 +62,17 @@ def get_recent_interactions(
 # ── Generic routes LAST (so they don't swallow /my, /home/fresh, etc.) ──
 
 @router.get("", response_model=List[ListingRead])
-def get_listings(db: Session = Depends(get_db)):
-    print("DEBUG: Entered get_listings (returning ALL active listings)")
-    listings = db.query(Listing).filter(Listing.status == "Active", Listing.active_status == True).all()
+def get_listings(
+    category_id: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    print(f"DEBUG: Entered get_listings (category_id: {category_id})")
+    query = db.query(Listing).filter(Listing.status == "Active", Listing.active_status == True)
+    
+    if category_id:
+        query = query.filter(Listing.category_id == category_id)
+        
+    listings = query.all()
     print(f"DEBUG: returning {len(listings)} active listings")
     return listings
 
