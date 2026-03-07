@@ -49,9 +49,43 @@ def fix_users_schema():
                 conn.execute(text("ALTER TABLE users ADD COLUMN last_seen TIMESTAMP WITH TIME ZONE;"))
                 conn.commit()
     except Exception as e:
-        print(f"Migration error (this is normal if using SQLite): {e}")
+        print(f"User schema migration error: {e}")
+
+# Fix for missing categories (Auto-Seed)
+def seed_categories():
+    from app.models.marketplace import Category
+    from app.db.session import SessionLocal
+    import uuid
+    
+    db = SessionLocal()
+    try:
+        count = db.query(Category).count()
+        if count == 0:
+            print("Migration: Seeding default categories...")
+            default_cats = [
+                {"name": "Mobile", "icon": "smartphone", "description": "Phones and tablets"},
+                {"name": "Electronics", "icon": "kitchen", "description": "Gadgets and tech"},
+                {"name": "Vehicles", "icon": "directions_car", "description": "Cars and bikes"},
+                {"name": "Real Estate", "icon": "home", "description": "Properties and land"},
+                {"name": "Fashion", "icon": "checkroom", "description": "Clothes and accessories"},
+            ]
+            for cat in default_cats:
+                db.add(Category(
+                    id=str(uuid.uuid4()),
+                    name=cat["name"],
+                    icon=cat["icon"],
+                    description=cat["description"],
+                    active_status=True
+                ))
+            db.commit()
+            print(f"Migration: Seeded {len(default_cats)} categories.")
+    except Exception as e:
+        print(f"Seeding error: {e}")
+    finally:
+        db.close()
 
 fix_users_schema()
+seed_categories()
 
 # CORS configuration – allow all origins during development
 app.add_middleware(
