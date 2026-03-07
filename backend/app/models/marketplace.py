@@ -1,0 +1,91 @@
+from sqlalchemy import Column, String, Float, Integer, ForeignKey, DateTime, func, Text, JSON, Boolean
+from sqlalchemy.orm import relationship
+from ..db.session import Base
+import uuid
+
+def generate_uuid():
+    return str(uuid.uuid4())
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    name = Column(String, nullable=False)
+    description = Column(String)
+    icon = Column(String)
+    subcategories = Column(JSON, default=list) # Deprecated, use subcategory_list
+    active_status = Column(Boolean, default=True)
+    
+    listings = relationship("Listing", back_populates="category")
+    subcategory_list = relationship("SubCategory", back_populates="category")
+
+class SubCategory(Base):
+    __tablename__ = "subcategories"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    name = Column(String, nullable=False)
+    category_id = Column(String, ForeignKey("categories.id"))
+    active_status = Column(Boolean, default=True)
+
+    category = relationship("Category", back_populates="subcategory_list")
+    listings = relationship("Listing", back_populates="subcategory_rel")
+
+class Listing(Base):
+    __tablename__ = "listings"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    price = Column(Float, nullable=False)
+    status = Column(String, default="Active") # Active, Sold, Suspended
+    images = Column(JSON, default=list)
+    active_status = Column(Boolean, default=True)
+    
+    category_id = Column(String, ForeignKey("categories.id"))
+    subcategory = Column(String, nullable=True) # Deprecated, use subcategory_id
+    subcategory_id = Column(String, ForeignKey("subcategories.id"), nullable=True)
+    location = Column(String, nullable=True)
+    user_id = Column(String, ForeignKey("users.id"))
+    
+    category = relationship("Category", back_populates="listings")
+    subcategory_rel = relationship("SubCategory", back_populates="listings")
+    owner = relationship("User")
+
+    @property
+    def category_name(self):
+        return self.category.name if self.category else None
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class Property(Base):
+    __tablename__ = "properties"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    price = Column(Float, nullable=False)
+    type = Column(String, nullable=False) # Apartment, Villa, etc.
+    status = Column(String, default="Active")
+    images = Column(JSON, default=list)
+    active_status = Column(Boolean, default=True)
+    
+    address = Column(String)
+    city = Column(String)
+    area = Column(Float)
+    bedrooms = Column(Integer)
+    bathrooms = Column(Integer)
+    
+    user_id = Column(String, ForeignKey("users.id"))
+    owner = relationship("User")
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class ListingInteraction(Base):
+    __tablename__ = "listing_interactions"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    listing_id = Column(String, ForeignKey("listings.id"), nullable=False)
+    interaction_type = Column(String) # 'view', 'like'
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
