@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import traceback
 import os
-from .api.endpoints import auth, marketplace, properties, ai, users, admin, chat, config, escrow
+from .api.endpoints import auth, marketplace, properties, ai, users, admin, chat, config, escrow, discovery
 from .routers import upload
 from .db.session import engine, Base
 from fastapi_socketio import SocketManager
