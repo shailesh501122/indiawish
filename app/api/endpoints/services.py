@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from ...db.session import get_db
 from ...models.user import User
 from ...models.services import ServiceCategory, ServiceProfile, ServiceBooking
-from .auth import get_current_user
+from ...api.deps import get_current_user
 
 router = APIRouter()
 
