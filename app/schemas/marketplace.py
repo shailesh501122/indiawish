@@ -41,11 +41,11 @@ class CategoryBase(BaseModel):
     description: Optional[str] = None
     icon: Optional[str] = None
     active_status: bool = True
-    filter_config: Optional[List[dict]] = []
+    filter_config: Optional[List[dict]] = None
 
 class CategoryRead(CategoryBase):
     id: str
-    subcategory_list: List[SubCategoryRead] = []
+    subcategory_list: Optional[List[SubCategoryRead]] = None
     class Config:
         from_attributes = True
 
