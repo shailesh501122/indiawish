@@ -4,9 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import traceback
 import os
-from .api.endpoints import auth, marketplace, properties, ai, users, admin, chat, config, escrow, discovery
+from .api.endpoints import auth, marketplace, properties, ai, users, admin, chat, config, escrow, discovery, services
 from .routers import upload
 from .db.session import engine, Base
+from .models import services as services_models
 from fastapi_socketio import SocketManager
 
 app = FastAPI(
@@ -202,7 +203,7 @@ app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(config.router, prefix="/api/config", tags=["config"])
 app.include_router(escrow.router, prefix="/api/escrow", tags=["escrow"])
 app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
-
+app.include_router(services.router, prefix="/api/services", tags=["services"])
 # Static files for uploads
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
