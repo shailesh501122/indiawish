@@ -84,7 +84,7 @@ import uuid
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "..", "uploads")
 
 async def save_upload_file(file: UploadFile) -> str:
-    if not file.content_type.startswith("image/"):
+    if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image.")
     
     file_extension = os.path.splitext(file.filename)[1]
@@ -101,13 +101,13 @@ async def save_upload_file(file: UploadFile) -> str:
 @router.post("/categories", response_model=CategoryRead)
 async def create_category(
     name: str = Form(...),
-    description: str = Form(None),
-    icon_file: UploadFile = File(None),
+    description: Optional[str] = Form(None),
+    icon_file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin)
 ):
     icon_path = None
-    if icon_file:
+    if icon_file and getattr(icon_file, "filename", ""):
         icon_path = await save_upload_file(icon_file)
     
     new_cat = Category(
@@ -123,9 +123,9 @@ async def create_category(
 @router.put("/categories/{category_id}", response_model=CategoryRead)
 async def update_category(
     category_id: str,
-    name: str = Form(None),
-    description: str = Form(None),
-    icon_file: UploadFile = File(None),
+    name: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    icon_file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin)
 ):
@@ -138,7 +138,7 @@ async def update_category(
     if description is not None:
         cat.description = description
     
-    if icon_file:
+    if icon_file and getattr(icon_file, "filename", ""):
         cat.icon = await save_upload_file(icon_file)
     
     db.commit()
@@ -183,7 +183,7 @@ def create_subcategory(
     admin: User = Depends(get_current_admin)
 ):
     icon_path = None
-    if icon_file:
+    if icon_file and getattr(icon_file, "filename", ""):
         os.makedirs("static/icons", exist_ok=True)
         file_extension = os.path.splitext(icon_file.filename)[1]
         file_name = f"subcat_{uuid.uuid4()}{file_extension}"
@@ -256,10 +256,10 @@ async def create_listing(
     description: str = Form(...),
     price: float = Form(...),
     category_id: str = Form(...),
-    subcategory_id: str = Form(None),
-    location: str = Form(None),
+    subcategory_id: Optional[str] = Form(None),
+    location: Optional[str] = Form(None),
     status: str = Form("Active"),
-    images_files: List[UploadFile] = File(None),
+    images_files: Optional[List[UploadFile]] = File(None),
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin)
 ):
@@ -288,14 +288,14 @@ async def create_listing(
 @router.put("/listings/{listing_id}", response_model=ListingRead)
 async def update_listing(
     listing_id: str,
-    title: str = Form(None),
-    description: str = Form(None),
-    price: float = Form(None),
-    category_id: str = Form(None),
-    subcategory_id: str = Form(None),
-    location: str = Form(None),
-    status: str = Form(None),
-    images_files: List[UploadFile] = File(None),
+    title: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    price: Optional[float] = Form(None),
+    category_id: Optional[str] = Form(None),
+    subcategory_id: Optional[str] = Form(None),
+    location: Optional[str] = Form(None),
+    status: Optional[str] = Form(None),
+    images_files: Optional[List[UploadFile]] = File(None),
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin)
 ):
@@ -313,7 +313,8 @@ async def update_listing(
     
     if images_files:
         image_paths = []
-        for file in images_files:
+        valid_files = [f for f in images_files if getattr(f, "filename", "")]
+        for file in valid_files:
             path = await save_upload_file(file)
             image_paths.append(path)
         listing.images = image_paths # Replace images for now
@@ -345,13 +346,13 @@ async def create_property(
     description: str = Form(...),
     price: float = Form(...),
     type: str = Form(...),
-    address: str = Form(None),
-    city: str = Form(None),
-    area: float = Form(None),
-    bedrooms: int = Form(None),
-    bathrooms: int = Form(None),
+    address: Optional[str] = Form(None),
+    city: Optional[str] = Form(None),
+    area: Optional[float] = Form(None),
+    bedrooms: Optional[int] = Form(None),
+    bathrooms: Optional[int] = Form(None),
     status: str = Form("Active"),
-    images_files: List[UploadFile] = File(None),
+    images_files: Optional[List[UploadFile]] = File(None),
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin)
 ):
@@ -383,17 +384,17 @@ async def create_property(
 @router.put("/properties/{property_id}", response_model=PropertyRead)
 async def update_property(
     property_id: str,
-    title: str = Form(None),
-    description: str = Form(None),
-    price: float = Form(None),
-    type: str = Form(None),
-    address: str = Form(None),
-    city: str = Form(None),
-    area: float = Form(None),
-    bedrooms: int = Form(None),
-    bathrooms: int = Form(None),
-    status: str = Form(None),
-    images_files: List[UploadFile] = File(None),
+    title: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    price: Optional[float] = Form(None),
+    type: Optional[str] = Form(None),
+    address: Optional[str] = Form(None),
+    city: Optional[str] = Form(None),
+    area: Optional[float] = Form(None),
+    bedrooms: Optional[int] = Form(None),
+    bathrooms: Optional[int] = Form(None),
+    status: Optional[str] = Form(None),
+    images_files: Optional[List[UploadFile]] = File(None),
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin)
 ):
@@ -414,7 +415,8 @@ async def update_property(
     
     if images_files:
         image_paths = []
-        for file in images_files:
+        valid_files = [f for f in images_files if getattr(f, "filename", "")]
+        for file in valid_files:
             path = await save_upload_file(file)
             image_paths.append(path)
         prop.images = image_paths
@@ -450,13 +452,13 @@ def get_admin_service_categories(
 @router.post("/service-categories", response_model=ServiceCategoryRead)
 async def create_service_category(
     name: str = Form(...),
-    description: str = Form(None),
-    icon_file: UploadFile = File(None),
+    description: Optional[str] = Form(None),
+    icon_file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin)
 ):
     icon_path = None
-    if icon_file:
+    if icon_file and getattr(icon_file, "filename", ""):
         icon_path = await save_upload_file(icon_file)
     
     new_cat = ServiceCategory(
@@ -472,10 +474,10 @@ async def create_service_category(
 @router.put("/service-categories/{category_id}", response_model=ServiceCategoryRead)
 async def update_service_category(
     category_id: str,
-    name: str = Form(None),
-    description: str = Form(None),
-    icon_file: UploadFile = File(None),
-    active_status: bool = Form(None),
+    name: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    icon_file: Optional[UploadFile] = File(None),
+    active_status: Optional[bool] = Form(None),
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin)
 ):
@@ -490,7 +492,7 @@ async def update_service_category(
     if active_status is not None:
         cat.active_status = active_status
     
-    if icon_file:
+    if icon_file and getattr(icon_file, "filename", ""):
         cat.icon = await save_upload_file(icon_file)
     
     db.commit()
