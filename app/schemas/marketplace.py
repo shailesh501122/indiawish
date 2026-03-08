@@ -20,6 +20,7 @@ class UserBasic(BaseModel):
 
 class SubCategoryBase(BaseModel):
     name: str
+    icon: Optional[str] = None
     active_status: bool = True
 
 class SubCategoryCreate(SubCategoryBase):
@@ -27,6 +28,7 @@ class SubCategoryCreate(SubCategoryBase):
 
 class SubCategoryUpdate(BaseModel):
     name: Optional[str] = None
+    icon: Optional[str] = None
     active_status: Optional[bool] = None
 
 class SubCategoryRead(SubCategoryBase):

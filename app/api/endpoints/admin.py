@@ -162,6 +162,9 @@ def delete_category(
 # Subcategory Management
 from ...models.marketplace import SubCategory
 from ...schemas.marketplace import SubCategoryRead, SubCategoryCreate, SubCategoryUpdate
+from fastapi import File, UploadFile
+import os
+import shutil
 
 @router.get("/subcategories", response_model=List[SubCategoryRead])
 def get_all_subcategories(
@@ -172,14 +175,27 @@ def get_all_subcategories(
 
 @router.post("/subcategories", response_model=SubCategoryRead)
 def create_subcategory(
-    subcategory_in: SubCategoryCreate,
+    name: str = Form(...),
+    category_id: str = Form(...),
+    active_status: bool = Form(True),
+    icon_file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin)
 ):
+    icon_path = None
+    if icon_file:
+        os.makedirs("static/icons", exist_ok=True)
+        file_extension = os.path.splitext(icon_file.filename)[1]
+        file_name = f"subcat_{uuid.uuid4()}{file_extension}"
+        icon_path = f"static/icons/{file_name}"
+        with open(icon_path, "wb") as buffer:
+            shutil.copyfileobj(icon_file.file, buffer)
+
     new_sub = SubCategory(
-        name=subcategory_in.name,
-        category_id=subcategory_in.category_id,
-        active_status=subcategory_in.active_status
+        name=name,
+        category_id=category_id,
+        active_status=active_status,
+        icon=icon_path
     )
     db.add(new_sub)
     db.commit()
@@ -189,7 +205,9 @@ def create_subcategory(
 @router.put("/subcategories/{subcategory_id}", response_model=SubCategoryRead)
 def update_subcategory(
     subcategory_id: str,
-    subcategory_in: SubCategoryUpdate,
+    name: Optional[str] = Form(None),
+    active_status: Optional[bool] = Form(None),
+    icon_file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin)
 ):
@@ -197,10 +215,19 @@ def update_subcategory(
     if not sub:
         raise HTTPException(status_code=404, detail="Subcategory not found")
     
-    if subcategory_in.name is not None:
-        sub.name = subcategory_in.name
-    if subcategory_in.active_status is not None:
-        sub.active_status = subcategory_in.active_status
+    if name is not None:
+        sub.name = name
+    if active_status is not None:
+        sub.active_status = active_status
+    
+    if icon_file:
+        os.makedirs("static/icons", exist_ok=True)
+        file_extension = os.path.splitext(icon_file.filename)[1]
+        file_name = f"subcat_{uuid.uuid4()}{file_extension}"
+        icon_path = f"static/icons/{file_name}"
+        with open(icon_path, "wb") as buffer:
+            shutil.copyfileobj(icon_file.file, buffer)
+        sub.icon = icon_path
         
     db.commit()
     db.refresh(sub)

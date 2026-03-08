@@ -25,6 +25,7 @@ class SubCategory(Base):
 
     id = Column(String, primary_key=True, default=generate_uuid)
     name = Column(String, nullable=False)
+    icon = Column(String)
     category_id = Column(String, ForeignKey("categories.id"))
     active_status = Column(Boolean, default=True)
 
