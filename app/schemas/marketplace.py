@@ -20,6 +20,14 @@ class UserBasic(BaseModel):
 
 class SubCategoryBase(BaseModel):
     name: str
+    active_status: bool = True
+
+class SubCategoryCreate(SubCategoryBase):
+    category_id: str
+
+class SubCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    active_status: Optional[bool] = None
 
 class SubCategoryRead(SubCategoryBase):
     id: str
@@ -30,7 +38,7 @@ class CategoryBase(BaseModel):
     name: str
     description: Optional[str] = None
     icon: Optional[str] = None
-    subcategories: Optional[List[str]] = []
+    active_status: bool = True
     filter_config: Optional[List[dict]] = []
 
 class CategoryRead(CategoryBase):
@@ -46,7 +54,7 @@ class CategoryUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     icon: Optional[str] = None
-    subcategories: Optional[List[str]] = None
+    active_status: Optional[bool] = None
     filter_config: Optional[List[dict]] = None
 
 class ListingBase(BaseModel):

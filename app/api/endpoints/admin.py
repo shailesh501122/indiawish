@@ -159,6 +159,67 @@ def delete_category(
     db.commit()
     return {"message": "Category deleted"}
 
+# Subcategory Management
+from ...models.marketplace import SubCategory
+from ...schemas.marketplace import SubCategoryRead, SubCategoryCreate, SubCategoryUpdate
+
+@router.get("/subcategories", response_model=List[SubCategoryRead])
+def get_all_subcategories(
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
+    return db.query(SubCategory).all()
+
+@router.post("/subcategories", response_model=SubCategoryRead)
+def create_subcategory(
+    subcategory_in: SubCategoryCreate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
+    new_sub = SubCategory(
+        name=subcategory_in.name,
+        category_id=subcategory_in.category_id,
+        active_status=subcategory_in.active_status
+    )
+    db.add(new_sub)
+    db.commit()
+    db.refresh(new_sub)
+    return new_sub
+
+@router.put("/subcategories/{subcategory_id}", response_model=SubCategoryRead)
+def update_subcategory(
+    subcategory_id: str,
+    subcategory_in: SubCategoryUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
+    sub = db.query(SubCategory).filter(SubCategory.id == subcategory_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subcategory not found")
+    
+    if subcategory_in.name is not None:
+        sub.name = subcategory_in.name
+    if subcategory_in.active_status is not None:
+        sub.active_status = subcategory_in.active_status
+        
+    db.commit()
+    db.refresh(sub)
+    return sub
+
+@router.delete("/subcategories/{subcategory_id}")
+def delete_subcategory(
+    subcategory_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
+    sub = db.query(SubCategory).filter(SubCategory.id == subcategory_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subcategory not found")
+    
+    db.delete(sub)
+    db.commit()
+    return {"message": "Subcategory deleted"}
+
 # Listing Management
 from ...schemas.marketplace import ListingRead
 
