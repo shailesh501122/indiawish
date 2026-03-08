@@ -44,11 +44,17 @@ def update_config(
     admin=Depends(get_current_admin)
 ):
     config = db.query(SystemConfig).filter(SystemConfig.key == key).first()
-    if not config:
-        raise HTTPException(status_code=404, detail="Configuration not found")
     
-    for field, value in config_in.dict(exclude_unset=True).items():
-        setattr(config, field, value)
+    if not config:
+        # Create it if it doesn't exist (Upsert logic)
+        new_config_data = config_in.dict(exclude_unset=True)
+        new_config_data["key"] = key
+        config = SystemConfig(**new_config_data)
+        db.add(config)
+    else:
+        # Update existing
+        for field, value in config_in.dict(exclude_unset=True).items():
+            setattr(config, field, value)
     
     db.commit()
     db.refresh(config)
