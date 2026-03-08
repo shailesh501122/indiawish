@@ -82,6 +82,7 @@ class ListingRead(ListingBase):
     status: str
     user_id: str
     category_name: Optional[str] = None
+    subcategory_name: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     owner: Optional[UserBasic] = None

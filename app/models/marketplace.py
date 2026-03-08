@@ -61,7 +61,11 @@ class Listing(Base):
     @property
     def category_name(self):
         return self.category.name if self.category else None
-    
+
+    @property
+    def subcategory_name(self):
+        return self.subcategory_rel.name if self.subcategory_rel else self.subcategory
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
