@@ -348,3 +348,77 @@ def delete_property(
     db.delete(prop)
     db.commit()
     return {"message": "Property deleted"}
+# Service Category Management
+from ...models.services import ServiceCategory
+from ...schemas.services import ServiceCategoryRead, ServiceCategoryUpdate
+
+@router.get("/service-categories", response_model=List[ServiceCategoryRead])
+def get_admin_service_categories(
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
+    return db.query(ServiceCategory).all()
+
+@router.post("/service-categories", response_model=ServiceCategoryRead)
+async def create_service_category(
+    name: str = Form(...),
+    description: str = Form(None),
+    icon_file: UploadFile = File(None),
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
+    icon_path = None
+    if icon_file:
+        icon_path = await save_upload_file(icon_file)
+    
+    new_cat = ServiceCategory(
+        name=name,
+        description=description,
+        icon=icon_path
+    )
+    db.add(new_cat)
+    db.commit()
+    db.refresh(new_cat)
+    return new_cat
+
+@router.put("/service-categories/{category_id}", response_model=ServiceCategoryRead)
+async def update_service_category(
+    category_id: str,
+    name: str = Form(None),
+    description: str = Form(None),
+    icon_file: UploadFile = File(None),
+    active_status: bool = Form(None),
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
+    cat = db.query(ServiceCategory).filter(ServiceCategory.id == category_id).first()
+    if not cat:
+        raise HTTPException(status_code=404, detail="Service Category not found")
+    
+    if name is not None:
+        cat.name = name
+    if description is not None:
+        cat.description = description
+    if active_status is not None:
+        cat.active_status = active_status
+    
+    if icon_file:
+        cat.icon = await save_upload_file(icon_file)
+    
+    db.commit()
+    db.refresh(cat)
+    return cat
+
+@router.delete("/service-categories/{category_id}")
+def delete_service_category(
+    category_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
+    cat = db.query(ServiceCategory).filter(ServiceCategory.id == category_id).first()
+    if not cat:
+        raise HTTPException(status_code=404, detail="Service Category not found")
+    
+    db.delete(cat)
+    db.commit()
+    return {"message": "Service Category deleted"}
