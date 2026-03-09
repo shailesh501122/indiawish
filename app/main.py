@@ -247,6 +247,13 @@ UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "upl
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
+# Run custom migrations and seed data on startup
+@app.on_event("startup")
+async def startup_event():
+    print("Migration: Starting startup schema checks...")
+    fix_all_schemas()
+    seed_dynamic_data()
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     error_msg = f"Global exception caught: {exc}\n{traceback.format_exc()}\n"
