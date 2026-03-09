@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional, Any, Dict
 from ...db.session import get_db
 from ...models.marketplace import Listing, Category, Property
@@ -18,7 +18,7 @@ def get_sio():
 
 @router.get("/categories", response_model=List[CategoryRead])
 def get_categories(db: Session = Depends(get_db)):
-    return db.query(Category).filter(Category.active_status == True).all()
+    return db.query(Category).options(joinedload(Category.subcategory_list)).filter(Category.active_status == True).all()
 
 @router.get("/my", response_model=List[ListingRead])
 def get_my_listings(
