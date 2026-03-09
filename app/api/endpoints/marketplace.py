@@ -7,6 +7,8 @@ from ...schemas.marketplace import ListingRead, ListingCreate, CategoryRead, Pro
 from ...models.services import ServiceProfile, ServiceCategory
 from sqlalchemy import desc, or_, func
 from datetime import datetime, timedelta
+from ...models.user import User
+from ..deps import get_current_user
 
 router = APIRouter()
 
