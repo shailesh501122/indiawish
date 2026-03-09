@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import traceback
 import os
-from .api.endpoints import auth, marketplace, properties, ai, users, admin, chat, config, escrow, discovery, services
+from .api.endpoints import auth, marketplace, properties, ai, users, admin, chat, config, escrow, discovery, services, notifications
 from .routers import upload
 from .db.session import engine, Base
 from .models import services as services_models
@@ -74,6 +74,14 @@ def fix_all_schemas():
             # Properties
             ensure_column("properties", "active_status", "BOOLEAN DEFAULT TRUE")
             
+            # Service Categories
+            ensure_column("service_categories", "active_status", "BOOLEAN DEFAULT TRUE")
+            ensure_column("service_categories", "icon", "VARCHAR")
+            
+            # Service Profiles
+            ensure_column("service_profiles", "active_status", "BOOLEAN DEFAULT TRUE")
+            ensure_column("service_profiles", "is_verified", "BOOLEAN DEFAULT FALSE")
+            
             # System Config table creation (if not exists)
             if "system_config" not in tables:
                 print("Migration: Creating system_config table...")
@@ -85,7 +93,26 @@ def fix_all_schemas():
                     );
                 """))
 
-            print("Migration: All schema checks completed successfully.")
+            # Notifications
+            ensure_column("notifications", "is_read", "BOOLEAN DEFAULT FALSE")
+            ensure_column("notifications", "data", "JSONB")
+
+            # --- INDEXES FOR PERFORMANCE ---
+            def ensure_index(index_name, table_name, columns):
+                try:
+                    conn.execute(text(f"CREATE INDEX IF NOT EXISTS {index_name} ON {table_name} ({columns})"))
+                except:
+                    pass
+
+            ensure_index("idx_listings_active_status", "listings", "active_status")
+            ensure_index("idx_listings_status", "listings", "status")
+            ensure_index("idx_listings_created_at", "listings", "created_at")
+            ensure_index("idx_service_profiles_active_status", "service_profiles", "active_status")
+            ensure_index("idx_listing_interactions_listing_id", "listing_interactions", "listing_id")
+            ensure_index("idx_listing_interactions_user_id", "listing_interactions", "user_id")
+            ensure_index("idx_listing_interactions_created_at", "listing_interactions", "created_at")
+
+            print("Migration: All schema checks and index optimizations completed successfully.")
     except Exception as e:
         print(f"Migration error: {e}")
         import traceback
@@ -133,6 +160,20 @@ def seed_dynamic_data():
             ]
             for cfg in configs:
                 db.add(SystemConfig(**cfg))
+            db.commit()
+
+        # 3. Service Categories (Requirement 4)
+        from app.models.services import ServiceCategory
+        if db.query(ServiceCategory).count() == 0:
+            print("Migration: Seeding default service categories...")
+            service_cats = [
+                {"name": "Housemaid", "icon": "cleaning_services", "description": "Professional house cleaning"},
+                {"name": "Cook/Chef", "icon": "soup_kitchen", "description": "Home cooked meals and catering"},
+                {"name": "Plumber", "icon": "plumbing", "description": "Pipe repairs and installation"},
+                {"name": "Electrician", "icon": "electrical_services", "description": "Wiring and electrical repairs"},
+            ]
+            for sc in service_cats:
+                db.add(ServiceCategory(**sc))
             db.commit()
             
     except Exception as e:
@@ -199,6 +240,8 @@ app.include_router(config.router, prefix="/api/config", tags=["config"])
 app.include_router(escrow.router, prefix="/api/escrow", tags=["escrow"])
 app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
 app.include_router(services.router, prefix="/api/services", tags=["services"])
+app.include_router(discovery.router, prefix="/api/discovery", tags=["discovery"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 # Static files for uploads
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)

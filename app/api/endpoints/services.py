@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy import desc, func
 from pydantic import BaseModel
 
 from ...db.session import get_db
@@ -39,6 +40,8 @@ def get_service_categories(db: Session = Depends(get_db)):
 def search_services(
     category_id: Optional[str] = None,
     location: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
     db: Session = Depends(get_db)
 ):
     """Search for service providers."""
@@ -50,7 +53,48 @@ def search_services(
         # Basic exact match for now, could be enhanced with geospatial search later
         query = query.filter(ServiceProfile.location.ilike(f"%{location}%"))
         
-    return query.all()
+    return query.order_by(desc(ServiceProfile.rating)).offset(skip).limit(limit).all()
+
+
+@router.get("/home/trending", response_model=List[ServiceProfileRead])
+def get_trending_services(db: Session = Depends(get_db)):
+    """Get service profiles with most bookings in last 30 days."""
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    
+    trending_ids = db.query(
+        ServiceBooking.service_profile_id,
+        func.count(ServiceBooking.id).label('booking_count')
+    ).filter(
+        ServiceBooking.created_at >= thirty_days_ago
+    ).group_by(
+        ServiceBooking.service_profile_id
+    ).order_by(
+        desc('booking_count')
+    ).limit(10).all()
+    
+    if not trending_ids:
+        # Fallback to highest rated services
+        return db.query(ServiceProfile).filter(
+            ServiceProfile.active_status == True
+        ).order_by(desc(ServiceProfile.rating), desc(ServiceProfile.total_reviews)).limit(10).all()
+        
+    ids = [t[0] for t in trending_ids]
+    profiles = db.query(ServiceProfile).filter(ServiceProfile.id.in_(ids)).all()
+    profiles.sort(key=lambda x: ids.index(x.id))
+    
+    return profiles
+
+
+@router.get("/home/recommended", response_model=List[ServiceProfileRead])
+def get_recommended_services(db: Session = Depends(get_db)):
+    """Get recommended services (Verified + High Rating)."""
+    return db.query(ServiceProfile).filter(
+        ServiceProfile.active_status == True,
+        ServiceProfile.is_verified == True
+    ).order_by(
+        desc(ServiceProfile.rating), 
+        desc(ServiceProfile.created_at)
+    ).limit(10).all()
 
 
 @router.post("/book", response_model=ServiceBookingRead)

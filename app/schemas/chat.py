@@ -36,6 +36,7 @@ class ConversationRead(BaseModel):
     listing_id: Optional[str] = None
     property_id: Optional[str] = None
     last_message: Optional[str] = None
+    unread_count: int = 0
     updated_at: Optional[datetime] = None
     other_user: UserBasic
 

@@ -34,6 +34,12 @@ def get_conversations(current_user: User = Depends(get_current_user), db: Sessio
         
         last_msg = db.query(Message).filter(Message.conversation_id == conv.id).order_by(Message.created_at.desc()).first()
         
+        unread_count = db.query(Message).filter(
+            Message.conversation_id == conv.id,
+            Message.sender_id != current_user.id,
+            Message.is_read == False
+        ).count()
+        
         result.append({
             "id": conv.id,
             "participant_one_id": conv.participant_one_id,
@@ -41,6 +47,7 @@ def get_conversations(current_user: User = Depends(get_current_user), db: Sessio
             "listing_id": conv.listing_id,
             "property_id": conv.property_id,
             "last_message": last_msg.content if last_msg else None,
+            "unread_count": unread_count,
             "updated_at": conv.updated_at,
             "other_user": {
                 "id": other_user.id,
@@ -147,11 +154,17 @@ def start_conversation(
             db.add(msg)
             conv.updated_at = datetime.utcnow()
             db.commit()
-        
+
     # Refresh to get latest state
     db.refresh(conv)
     last_msg = db.query(Message).filter(Message.conversation_id == conv.id).order_by(Message.created_at.desc()).first()
-    
+
+    unread_count = db.query(Message).filter(
+        Message.conversation_id == conv.id,
+        Message.sender_id != current_user.id,
+        Message.is_read == False
+    ).count()
+
     return {
         "id": conv.id,
         "participant_one_id": conv.participant_one_id,
@@ -159,6 +172,7 @@ def start_conversation(
         "listing_id": conv.listing_id,
         "property_id": conv.property_id,
         "last_message": last_msg.content if last_msg else None,
+        "unread_count": unread_count,
         "updated_at": conv.updated_at,
         "other_user": {
             "id": other_user.id,
@@ -168,3 +182,46 @@ def start_conversation(
             "last_seen": other_user.last_seen
         }
     }
+
+@router.post("/messages/{conversation_id}/read")
+async def mark_messages_as_read(conversation_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db.query(Message).filter(
+        Message.conversation_id == conversation_id,
+        Message.sender_id != current_user.id,
+        Message.is_read == False
+    ).update({"is_read": True}, synchronize_session=False)
+    db.commit()
+
+    # Broadcast read status via Socket.io
+    try:
+        sio = get_sio()
+        await sio.emit('messages_read', {
+            "conversation_id": conversation_id,
+            "reader_id": current_user.id
+        }, room=conversation_id)
+    except Exception as e:
+        print(f"Error broadcasting read status: {e}")
+
+    return {"status": "success"}
+
+@router.post("/call/signal")
+async def send_call_signal(
+    other_user_id: str,
+    signal_type: str, # 'offer', 'answer', 'ice', 'hangup'
+    data: dict = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        sio = get_sio()
+        payload = {
+            "from_user_id": current_user.id,
+            "from_user_name": f"{current_user.first_name} {current_user.last_name}",
+            "type": signal_type,
+            "data": data
+        }
+        await sio.emit('call_signal', payload, room=other_user_id)
+        return {"status": "sent"}
+    except Exception as e:
+        print(f"Error sending call signal: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send signal")

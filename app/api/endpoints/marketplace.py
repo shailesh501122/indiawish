@@ -2,12 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session, joinedload, selectinload
 from typing import List, Optional, Any, Dict
 from ...db.session import get_db
-from ...models.marketplace import Listing, Category, Property
-from ...schemas.marketplace import ListingRead, ListingCreate, CategoryRead, PropertyRead, PropertyCreate
-from ...api.deps import get_current_user
-from ...models.user import User
-from ...models.marketplace import ListingInteraction
-from sqlalchemy import desc
+from ...models.marketplace import Listing, Category, Property, SubCategory, ListingInteraction
+from ...schemas.marketplace import ListingRead, ListingCreate, CategoryRead, PropertyRead, PropertyCreate, GlobalSearchItem
+from ...models.services import ServiceProfile, ServiceCategory
+from sqlalchemy import desc, or_, func
+from datetime import datetime, timedelta
 
 router = APIRouter()
 
@@ -59,6 +58,107 @@ def get_recent_interactions(
             
     return listings
 
+@router.get("/home/trending", response_model=List[ListingRead])
+def get_trending_listings(db: Session = Depends(get_db)):
+    # Get listings with most interactions in the last 7 days
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    
+    trending_ids = db.query(
+        ListingInteraction.listing_id,
+        func.count(ListingInteraction.id).label('interaction_count')
+    ).filter(
+        ListingInteraction.created_at >= seven_days_ago
+    ).group_by(
+        ListingInteraction.listing_id
+    ).order_by(
+        desc('interaction_count')
+    ).limit(10).all()
+    
+    if not trending_ids:
+        # Fallback to fresh listings if no recent interactions
+        return db.query(Listing).filter(
+            Listing.status == "Active", 
+            Listing.active_status == True
+        ).order_by(desc(Listing.created_at)).limit(10).all()
+        
+    ids = [t[0] for t in trending_ids]
+    listings = db.query(Listing).filter(Listing.id.in_(ids)).all()
+    # Sort listings according to original trending order
+    listings.sort(key=lambda x: ids.index(x.id))
+    
+    return listings
+
+
+@router.get("/search/global", response_model=List[GlobalSearchItem])
+def global_search(
+    query: str = Query(..., min_length=2),
+    db: Session = Depends(get_db)
+):
+    """
+    Search across Listings, Categories, and Services.
+    """
+    results = []
+    search_term = f"%{query}%"
+
+    # 1. Search Listings
+    listings = db.query(Listing).filter(
+        Listing.active_status == True,
+        or_(
+            Listing.title.ilike(search_term),
+            Listing.description.ilike(search_term)
+        )
+    ).limit(10).all()
+    
+    for l in listings:
+        img = l.images[0] if l.images else None
+        results.append(GlobalSearchItem(
+            id=l.id,
+            title=l.title,
+            type="listing",
+            image_url=img,
+            price=l.price,
+            location=l.location,
+            category_name=l.category_name
+        ))
+
+    # 2. Search Categories
+    categories = db.query(Category).filter(
+        Category.active_status == True,
+        Category.name.ilike(search_term)
+    ).limit(5).all()
+    
+    for c in categories:
+        results.append(GlobalSearchItem(
+            id=c.id,
+            title=c.name,
+            type="category",
+            image_url=c.icon,
+            category_name="Marketplace"
+        ))
+
+    # 3. Search Service Profiles
+    services = db.query(ServiceProfile).filter(
+        ServiceProfile.active_status == True,
+        or_(
+            ServiceProfile.title.ilike(search_term),
+            ServiceProfile.description.ilike(search_term)
+        )
+    ).limit(10).all()
+    
+    for s in services:
+        img = s.images[0] if s.images else None
+        results.append(GlobalSearchItem(
+            id=s.id,
+            title=s.title,
+            type="service",
+            image_url=img,
+            price=s.base_price,
+            location=s.location,
+            category_name="Home Service"
+        ))
+
+    return results
+
 # ── Generic routes LAST (so they don't swallow /my, /home/fresh, etc.) ──
 
 # \u2500\u2500\u2500 Feature: AI Price Suggestion \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
@@ -108,6 +208,8 @@ def suggest_price(
 @router.get("", response_model=List[ListingRead])
 def get_listings(
     request: Request,
+    skip: int = 0,
+    limit: int = 50,
     category_id: Optional[str] = None,
     subcategory_id: Optional[str] = None,
     listing_type: Optional[str] = None,
@@ -131,10 +233,10 @@ def get_listings(
     # Dynamic property filtering
     params = request.query_params
     for key, value in params.items():
-        if key not in ["category_id", "subcategory_id", "listing_type", "has_video"]:
+        if key not in ["category_id", "subcategory_id", "listing_type", "has_video", "skip", "limit"]:
             query = query.filter(Listing.properties[key].astext == value)
             
-    listings = query.all()
+    listings = query.order_by(desc(Listing.created_at)).offset(skip).limit(limit).all()
     return listings
 
 @router.get("/{listing_id}", response_model=ListingRead)

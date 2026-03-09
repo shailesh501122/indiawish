@@ -124,3 +124,12 @@ class SellerProfile(BaseModel):
     is_followed_by: bool = False
     class Config:
         from_attributes = True
+
+class GlobalSearchItem(BaseModel):
+    id: str
+    title: str
+    type: str # 'listing', 'service', 'category'
+    image_url: Optional[str] = None
+    price: Optional[float] = None
+    location: Optional[str] = None
+    category_name: Optional[str] = None
