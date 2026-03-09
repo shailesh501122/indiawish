@@ -26,69 +26,51 @@ Base.metadata.create_all(bind=engine)
 # Comprehensive Fix for missing columns (Automated Migration)
 def fix_all_schemas():
     from sqlalchemy import text
+    
+    def add_column_if_missing(conn, table, column, type_def):
+        try:
+            # Try to add the column. If it exists, SQL will throw an error we catch.
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {type_def};"))
+            conn.commit()
+            print(f"Migration: Added {column} to {table}")
+        except Exception:
+            # Column likely already exists or table doesn't exist yet
+            pass
+
     try:
         with engine.connect() as conn:
-            # 1. FIX USERS TABLE
-            try:
-                result = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"))
-                columns = [row[0] for row in result]
-                if 'verification_level' not in columns:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN verification_level VARCHAR DEFAULT 'unverified';"))
-                if 'is_elite' not in columns:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN is_elite BOOLEAN DEFAULT FALSE;"))
-                if 'last_seen' not in columns:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN last_seen TIMESTAMP WITH TIME ZONE;"))
-                conn.commit()
-            except Exception as e:
-                print(f"Users table migration error: {e}")
+            # Define all missing columns to check/add
+            # For SQLite, we use simple types (VARCHAR, BOOLEAN). 
+            # For PostgreSQL, these map correctly too.
             
-            # 2. FIX LISTINGS TABLE
-            try:
-                result = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'listings'"))
-                columns = [row[0] for row in result]
-                if 'properties' not in columns:
-                    conn.execute(text("ALTER TABLE listings ADD COLUMN properties JSONB DEFAULT '{}';"))
-                if 'location' not in columns:
-                    conn.execute(text("ALTER TABLE listings ADD COLUMN location VARCHAR;"))
-                if 'listing_type' not in columns:
-                    conn.execute(text("ALTER TABLE listings ADD COLUMN listing_type VARCHAR DEFAULT 'sell';"))
-                if 'rent_price' not in columns:
-                    conn.execute(text("ALTER TABLE listings ADD COLUMN rent_price FLOAT;"))
-                if 'rent_period' not in columns:
-                    conn.execute(text("ALTER TABLE listings ADD COLUMN rent_period VARCHAR;"))
-                if 'video_url' not in columns:
-                    conn.execute(text("ALTER TABLE listings ADD COLUMN video_url VARCHAR;"))
-                if 'subcategory_id' not in columns:
-                    conn.execute(text("ALTER TABLE listings ADD COLUMN subcategory_id VARCHAR;"))
-                if 'subcategory' not in columns:
-                    conn.execute(text("ALTER TABLE listings ADD COLUMN subcategory VARCHAR;"))
-                conn.commit()
-            except Exception as e:
-                print(f"Listings table migration error: {e}")
-
-            # 3. FIX CATEGORIES TABLE
-            try:
-                result = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'categories'"))
-                columns = [row[0] for row in result]
-                if 'filter_config' not in columns:
-                    conn.execute(text("ALTER TABLE categories ADD COLUMN filter_config JSONB DEFAULT '[]';"))
-                if 'subcategories' not in columns:
-                    conn.execute(text("ALTER TABLE categories ADD COLUMN subcategories JSONB DEFAULT '[]';"))
-                conn.commit()
-            except Exception as e:
-                print(f"Categories table migration error: {e}")
+            # Users
+            add_column_if_missing(conn, "users", "verification_level", "VARCHAR DEFAULT 'unverified'")
+            add_column_if_missing(conn, "users", "is_elite", "BOOLEAN DEFAULT FALSE")
+            add_column_if_missing(conn, "users", "last_seen", "TIMESTAMP WITH TIME ZONE")
             
-            # 4. FIX PROPERTIES TABLE
-            try:
-                result = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'properties'"))
-                columns = [row[0] for row in result]
-                if 'active_status' not in columns:
-                    conn.execute(text("ALTER TABLE properties ADD COLUMN active_status BOOLEAN DEFAULT TRUE;"))
-                conn.commit()
-            except Exception as e:
-                print(f"Properties table migration error: {e}")
-
-            # 5. FIX SYSTEM_CONFIG TABLE
+            # Listings
+            add_column_if_missing(conn, "listings", "properties", "JSONB DEFAULT '{}'")
+            add_column_if_missing(conn, "listings", "location", "VARCHAR")
+            add_column_if_missing(conn, "listings", "listing_type", "VARCHAR DEFAULT 'sell'")
+            add_column_if_missing(conn, "listings", "rent_price", "FLOAT")
+            add_column_if_missing(conn, "listings", "rent_period", "VARCHAR")
+            add_column_if_missing(conn, "listings", "video_url", "VARCHAR")
+            add_column_if_missing(conn, "listings", "subcategory_id", "VARCHAR")
+            add_column_if_missing(conn, "listings", "subcategory", "VARCHAR")
+            add_column_if_missing(conn, "listings", "active_status", "BOOLEAN DEFAULT TRUE")
+            
+            # Categories
+            add_column_if_missing(conn, "categories", "filter_config", "JSONB DEFAULT '[]'")
+            add_column_if_missing(conn, "categories", "subcategories", "JSONB DEFAULT '[]'")
+            add_column_if_missing(conn, "categories", "active_status", "BOOLEAN DEFAULT TRUE")
+            
+            # Subcategories
+            add_column_if_missing(conn, "subcategories", "active_status", "BOOLEAN DEFAULT TRUE")
+            
+            # Properties
+            add_column_if_missing(conn, "properties", "active_status", "BOOLEAN DEFAULT TRUE")
+            
+            # System Config table creation
             try:
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS system_config (
@@ -98,8 +80,7 @@ def fix_all_schemas():
                     );
                 """))
                 conn.commit()
-            except Exception as e:
-                print(f"SystemConfig table creation error: {e}")
+            except Exception: pass
 
             print("Migration: All schema checks completed.")
     except Exception as e:
@@ -157,11 +138,20 @@ def seed_dynamic_data():
 fix_all_schemas()
 seed_dynamic_data()
 
-# CORS configuration – allow all origins during development
+# CORS configuration
+origins = [
+    "https://indiawishadmin.vercel.app",
+    "https://indiawish-admin.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:5173",
+    "*"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"]
