@@ -25,68 +25,71 @@ Base.metadata.create_all(bind=engine)
 
 # Comprehensive Fix for missing columns (Automated Migration)
 def fix_all_schemas():
-    from sqlalchemy import text
+    from sqlalchemy import text, inspect
     
-    def add_column_if_missing(conn, table, column, type_def):
-        try:
-            # Try to add the column. If it exists, SQL will throw an error we catch.
-            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {type_def};"))
-            conn.commit()
-            print(f"Migration: Added {column} to {table}")
-        except Exception:
-            # Column likely already exists or table doesn't exist yet
-            pass
-
     try:
-        with engine.connect() as conn:
-            # Define all missing columns to check/add
-            # For SQLite, we use simple types (VARCHAR, BOOLEAN). 
-            # For PostgreSQL, these map correctly too.
-            
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        print(f"Migration: Checking tables: {tables}")
+        
+        with engine.begin() as conn:
+            # Helper to add column if missing
+            def ensure_column(table_name, column_name, type_def):
+                if table_name not in tables:
+                    return
+                columns = [c['name'] for c in inspector.get_columns(table_name)]
+                if column_name not in columns:
+                    print(f"Migration: Adding {column_name} to {table_name}...")
+                    conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {type_def}"))
+                else:
+                    # print(f"Migration: {table_name}.{column_name} already exists.")
+                    pass
+
             # Users
-            add_column_if_missing(conn, "users", "verification_level", "VARCHAR DEFAULT 'unverified'")
-            add_column_if_missing(conn, "users", "is_elite", "BOOLEAN DEFAULT FALSE")
-            add_column_if_missing(conn, "users", "last_seen", "TIMESTAMP WITH TIME ZONE")
+            ensure_column("users", "verification_level", "VARCHAR DEFAULT 'unverified'")
+            ensure_column("users", "is_elite", "BOOLEAN DEFAULT FALSE")
+            ensure_column("users", "last_seen", "TIMESTAMP WITH TIME ZONE")
             
             # Listings
-            add_column_if_missing(conn, "listings", "properties", "JSONB DEFAULT '{}'")
-            add_column_if_missing(conn, "listings", "location", "VARCHAR")
-            add_column_if_missing(conn, "listings", "listing_type", "VARCHAR DEFAULT 'sell'")
-            add_column_if_missing(conn, "listings", "rent_price", "FLOAT")
-            add_column_if_missing(conn, "listings", "rent_period", "VARCHAR")
-            add_column_if_missing(conn, "listings", "video_url", "VARCHAR")
-            add_column_if_missing(conn, "listings", "subcategory_id", "VARCHAR")
-            add_column_if_missing(conn, "listings", "subcategory", "VARCHAR")
-            add_column_if_missing(conn, "listings", "active_status", "BOOLEAN DEFAULT TRUE")
+            ensure_column("listings", "properties", "JSONB DEFAULT '{}'")
+            ensure_column("listings", "location", "VARCHAR")
+            ensure_column("listings", "listing_type", "VARCHAR DEFAULT 'sell'")
+            ensure_column("listings", "rent_price", "FLOAT")
+            ensure_column("listings", "rent_period", "VARCHAR")
+            ensure_column("listings", "video_url", "VARCHAR")
+            ensure_column("listings", "subcategory_id", "VARCHAR")
+            ensure_column("listings", "subcategory", "VARCHAR")
+            ensure_column("listings", "active_status", "BOOLEAN DEFAULT TRUE")
             
             # Categories
-            add_column_if_missing(conn, "categories", "filter_config", "JSONB DEFAULT '[]'")
-            add_column_if_missing(conn, "categories", "subcategories", "JSONB DEFAULT '[]'")
-            add_column_if_missing(conn, "categories", "active_status", "BOOLEAN DEFAULT TRUE")
+            ensure_column("categories", "filter_config", "JSONB DEFAULT '[]'")
+            ensure_column("categories", "subcategories", "JSONB DEFAULT '[]'")
+            ensure_column("categories", "active_status", "BOOLEAN DEFAULT TRUE")
             
             # Subcategories
-            add_column_if_missing(conn, "subcategories", "active_status", "BOOLEAN DEFAULT TRUE")
-            add_column_if_missing(conn, "subcategories", "icon", "VARCHAR")
-            add_column_if_missing(conn, "subcategories", "category_id", "VARCHAR")
+            ensure_column("subcategories", "active_status", "BOOLEAN DEFAULT TRUE")
+            ensure_column("subcategories", "icon", "VARCHAR")
+            ensure_column("subcategories", "category_id", "VARCHAR")
             
             # Properties
-            add_column_if_missing(conn, "properties", "active_status", "BOOLEAN DEFAULT TRUE")
+            ensure_column("properties", "active_status", "BOOLEAN DEFAULT TRUE")
             
-            # System Config table creation
-            try:
+            # System Config table creation (if not exists)
+            if "system_config" not in tables:
+                print("Migration: Creating system_config table...")
                 conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS system_config (
+                    CREATE TABLE system_config (
                         key VARCHAR PRIMARY KEY,
                         value TEXT NOT NULL,
                         description VARCHAR
                     );
                 """))
-                conn.commit()
-            except Exception: pass
 
-            print("Migration: All schema checks completed.")
+            print("Migration: All schema checks completed successfully.")
     except Exception as e:
         print(f"Migration error: {e}")
+        import traceback
+        traceback.print_exc()
 
 # Fix for missing categories (Auto-Seed)
 def seed_dynamic_data():
