@@ -66,6 +66,8 @@ def fix_all_schemas():
             
             # Subcategories
             add_column_if_missing(conn, "subcategories", "active_status", "BOOLEAN DEFAULT TRUE")
+            add_column_if_missing(conn, "subcategories", "icon", "VARCHAR")
+            add_column_if_missing(conn, "subcategories", "category_id", "VARCHAR")
             
             # Properties
             add_column_if_missing(conn, "properties", "active_status", "BOOLEAN DEFAULT TRUE")
