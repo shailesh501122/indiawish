@@ -7,12 +7,11 @@ from ...models.user import User
 from ...api.deps import get_current_user
 from pydantic import BaseModel
 from datetime import datetime
-from uuid import UUID
 
 router = APIRouter()
 
 class NotificationRead(BaseModel):
-    id: UUID
+    id: str
     title: str
     body: str
     type: str
@@ -36,7 +35,7 @@ def get_notifications(
 
 @router.post("/{notification_id}/read")
 def mark_notification_as_read(
-    notification_id: UUID,
+    notification_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
