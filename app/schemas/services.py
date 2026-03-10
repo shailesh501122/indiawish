@@ -63,3 +63,29 @@ class ServiceBookingRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ServiceLeadCreate(BaseModel):
+    category_id: str
+    location: str
+    description: str
+
+class ServiceLeadRead(BaseModel):
+    id: str
+    user_id: str
+    category_id: str
+    location: str
+    description: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class LeadAssignmentRead(BaseModel):
+    id: str
+    lead_id: str
+    provider_id: str
+    status: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True

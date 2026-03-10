@@ -16,6 +16,7 @@ class Category(Base):
     subcategories = Column(JSON, default=list) # Deprecated, use subcategory_list
     active_status = Column(Boolean, default=True)
     filter_config = Column(JSON, default=list) # List of filter definitions
+    whatsapp_contact_enabled = Column(Boolean, default=True) # WhatsApp lead sharing
     
     listings = relationship("Listing", back_populates="category")
     subcategory_list = relationship("SubCategory", back_populates="category")
@@ -113,3 +114,31 @@ class Escrow(Base):
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class LocalDeal(Base):
+    __tablename__ = "local_deals"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    business_id = Column(String, ForeignKey("users.id"), nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    discount_price = Column(Float, nullable=False)
+    original_price = Column(Float, nullable=False)
+    start_date = Column(DateTime(timezone=True), nullable=False)
+    expiry_date = Column(DateTime(timezone=True), nullable=False)
+    location = Column(String, nullable=True)
+    active_status = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class ListingView(Base):
+    __tablename__ = "listing_views"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    listing_id = Column(String, ForeignKey("listings.id"), nullable=False)
+    viewer_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+class ListingLead(Base):
+    __tablename__ = "listing_leads"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    listing_id = Column(String, ForeignKey("listings.id"), nullable=False)
+    buyer_user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

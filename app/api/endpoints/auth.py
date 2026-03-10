@@ -43,7 +43,9 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             "profilePicUrl": user.profile_pic_url,
             "roles": user.roles.split(","),
             "created_at": user.created_at.isoformat() if user.created_at else None,
-            "is_elite": getattr(user, 'is_elite', False) or False
+            "is_elite": getattr(user, 'is_elite', False) or False,
+            "referral_code": getattr(user, 'referral_code', None),
+            "referral_reward_balance": getattr(user, 'referral_reward_balance', 0.0)
         }
     }
 
@@ -53,6 +55,15 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
         
+    import uuid
+    new_referral_code = str(uuid.uuid4())[:8].upper()
+    referred_by_id = None
+    
+    if request.referralCode:
+        referrer = db.query(User).filter(User.referral_code == request.referralCode).first()
+        if referrer:
+            referred_by_id = referrer.id
+
     new_user = User(
         email=request.email,
         hashed_password=get_password_hash(request.password),
@@ -60,12 +71,33 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         last_name=request.lastName,
         phone_number=request.phoneNumber,
         profile_pic_url=request.profilePicUrl,
+        referral_code=new_referral_code,
+        referred_by_id=referred_by_id,
         roles="User"
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     
+    if referred_by_id:
+        try:
+            from ...models.user import ReferralTransaction
+            rt = ReferralTransaction(
+                referrer_user_id=referred_by_id,
+                referred_user_id=new_user.id,
+                reward_amount=50.0,
+                status="completed"
+            )
+            db.add(rt)
+            referrer = db.query(User).filter(User.id == referred_by_id).first()
+            if referrer:
+                referrer.referral_reward_balance = (referrer.referral_reward_balance or 0.0) + 50.0
+            new_user.referral_reward_balance = 50.0
+            db.commit()
+            db.refresh(new_user)
+        except Exception as e:
+            print(f"Referral processing error: {e}")
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         subject=new_user.id, expires_delta=access_token_expires
@@ -83,7 +115,9 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
             "profilePicUrl": new_user.profile_pic_url,
             "roles": ["User"],
             "created_at": new_user.created_at.isoformat() if new_user.created_at else None,
-            "is_elite": False
+            "is_elite": False,
+            "referral_code": getattr(new_user, 'referral_code', None),
+            "referral_reward_balance": getattr(new_user, 'referral_reward_balance', 0.0)
         }
     }
 @router.post("/refresh", response_model=AuthResponse)
@@ -110,7 +144,9 @@ def refresh_token(refreshToken: str, db: Session = Depends(get_db)):
                 "profilePicUrl": user.profile_pic_url,
                 "roles": user.roles.split(","),
                 "created_at": user.created_at.isoformat() if user.created_at else None,
-                "is_elite": getattr(user, 'is_elite', False) or False
+                "is_elite": getattr(user, 'is_elite', False) or False,
+                "referral_code": getattr(user, 'referral_code', None),
+                "referral_reward_balance": getattr(user, 'referral_reward_balance', 0.0)
             }
         }
     except JWTError:
@@ -135,12 +171,14 @@ def google_login(request: GoogleAuthRequest, db: Session = Depends(get_db)):
         
         user = db.query(User).filter(User.email == email).first()
         if not user:
+            new_referral_code = str(uuid.uuid4())[:8].upper()
             user = User(
                 email=email,
                 hashed_password=get_password_hash(uuid.uuid4().hex), # Random password
                 first_name=first_name,
                 last_name=last_name,
                 profile_pic_url=profile_pic,
+                referral_code=new_referral_code,
                 roles="User"
             )
             db.add(user)
@@ -161,7 +199,9 @@ def google_login(request: GoogleAuthRequest, db: Session = Depends(get_db)):
                 "profilePicUrl": user.profile_pic_url,
                 "roles": user.roles.split(","),
                 "created_at": user.created_at.isoformat() if user.created_at else None,
-                "is_elite": getattr(user, 'is_elite', False) or False
+                "is_elite": getattr(user, 'is_elite', False) or False,
+                "referral_code": getattr(user, 'referral_code', None),
+                "referral_reward_balance": getattr(user, 'referral_reward_balance', 0.0)
             }
         }
     except Exception as e:

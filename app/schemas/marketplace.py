@@ -42,6 +42,7 @@ class CategoryBase(BaseModel):
     icon: Optional[str] = None
     active_status: bool = True
     filter_config: Optional[List[dict]] = None
+    whatsapp_contact_enabled: bool = True
 
 class CategoryRead(CategoryBase):
     id: str
@@ -58,6 +59,7 @@ class CategoryUpdate(BaseModel):
     icon: Optional[str] = None
     active_status: Optional[bool] = None
     filter_config: Optional[List[dict]] = None
+    whatsapp_contact_enabled: Optional[bool] = None
 
 class ListingBase(BaseModel):
     title: str
@@ -133,3 +135,31 @@ class GlobalSearchItem(BaseModel):
     price: Optional[float] = None
     location: Optional[str] = None
     category_name: Optional[str] = None
+
+class LocalDealBase(BaseModel):
+    title: str
+    description: str
+    discount_price: float
+    original_price: float
+    start_date: datetime
+    expiry_date: datetime
+    location: Optional[str] = None
+    active_status: bool = True
+
+class LocalDealCreate(LocalDealBase):
+    pass
+
+class LocalDealRead(LocalDealBase):
+    id: str
+    business_id: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class ListingAnalyticsRead(BaseModel):
+    listing_id: str
+    title: str
+    total_views: int
+    total_leads: int
+    conversion_rate: float

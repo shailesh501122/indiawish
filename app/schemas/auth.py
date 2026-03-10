@@ -18,6 +18,7 @@ class RegisterRequest(BaseModel):
     password: str
     phoneNumber: Optional[str] = None
     profilePicUrl: Optional[str] = None
+    referralCode: Optional[str] = None
 
     class Config:
         populate_by_name = True
@@ -38,6 +39,8 @@ class UserResponse(BaseModel):
     following_count: int = 0
     is_elite: bool = False
     verification_level: str = "unverified"
+    referral_code: Optional[str] = None
+    referral_reward_balance: float = 0.0
 
     class Config:
         from_attributes = True

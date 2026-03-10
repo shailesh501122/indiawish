@@ -49,6 +49,9 @@ def fix_all_schemas():
             ensure_column("users", "verification_level", "VARCHAR DEFAULT 'unverified'")
             ensure_column("users", "is_elite", "BOOLEAN DEFAULT FALSE")
             ensure_column("users", "last_seen", "TIMESTAMP WITH TIME ZONE")
+            ensure_column("users", "referral_code", "VARCHAR")
+            ensure_column("users", "referred_by_id", "VARCHAR")
+            ensure_column("users", "referral_reward_balance", "FLOAT DEFAULT 0.0")
             
             # Listings
             ensure_column("listings", "properties", "JSONB DEFAULT '{}'")
@@ -65,6 +68,7 @@ def fix_all_schemas():
             ensure_column("categories", "filter_config", "JSONB DEFAULT '[]'")
             ensure_column("categories", "subcategories", "JSONB DEFAULT '[]'")
             ensure_column("categories", "active_status", "BOOLEAN DEFAULT TRUE")
+            ensure_column("categories", "whatsapp_contact_enabled", "BOOLEAN DEFAULT TRUE")
             
             # Subcategories
             ensure_column("subcategories", "active_status", "BOOLEAN DEFAULT TRUE")

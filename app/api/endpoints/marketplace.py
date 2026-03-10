@@ -335,3 +335,62 @@ async def create_property(
         print(f"Error broadcasting property: {e}")
         
     return new_property
+
+from ...schemas.marketplace import LocalDealCreate, LocalDealRead, ListingAnalyticsRead
+
+@router.post("/deals", response_model=LocalDealRead)
+def create_local_deal(
+    deal_in: LocalDealCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    from ...models.marketplace import LocalDeal
+    new_deal = LocalDeal(
+        **deal_in.dict(),
+        business_id=current_user.id
+    )
+    db.add(new_deal)
+    db.commit()
+    db.refresh(new_deal)
+    return new_deal
+
+@router.get("/deals/nearby", response_model=List[LocalDealRead])
+def get_nearby_deals(
+    location: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    from ...models.marketplace import LocalDeal
+    from datetime import datetime, timezone
+    
+    query = db.query(LocalDeal).filter(
+        LocalDeal.active_status == True,
+        LocalDeal.expiry_date > func.now()
+    )
+    if location:
+        query = query.filter(LocalDeal.location.ilike(f"%{location}%"))
+        
+    return query.order_by(LocalDeal.expiry_date.asc()).all()
+
+@router.get("/analytics", response_model=List[ListingAnalyticsRead])
+def get_seller_analytics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    from ...models.marketplace import Listing, ListingView, ListingLead
+    listings = db.query(Listing).filter(Listing.user_id == current_user.id).all()
+    
+    analytics = []
+    for listing in listings:
+        views_count = db.query(ListingView).filter(ListingView.listing_id == listing.id).count()
+        leads_count = db.query(ListingLead).filter(ListingLead.listing_id == listing.id).count()
+        conversion = (leads_count / views_count * 100) if views_count > 0 else 0.0
+        
+        analytics.append({
+            "listing_id": listing.id,
+            "title": listing.title,
+            "total_views": views_count,
+            "total_leads": leads_count,
+            "conversion_rate": round(conversion, 2)
+        })
+        
+    return analytics

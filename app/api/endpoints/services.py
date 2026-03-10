@@ -12,7 +12,15 @@ from ...api.deps import get_current_user
 
 router = APIRouter()
 
-from ...schemas.services import ServiceCategoryRead, ServiceProfileRead, ServiceBookingCreate, ServiceBookingRead
+from ...schemas.services import (
+    ServiceCategoryRead, 
+    ServiceProfileRead, 
+    ServiceBookingCreate, 
+    ServiceBookingRead,
+    ServiceLeadCreate,
+    ServiceLeadRead,
+    LeadAssignmentRead
+)
 
 # --- Endpoints ---
 
@@ -143,3 +151,80 @@ def get_my_bookings(
         return db.query(ServiceBooking).filter(ServiceBooking.provider_id == current_user.id).order_by(ServiceBooking.created_at.desc()).all()
     else:
         raise HTTPException(status_code=400, detail="Invalid role specified")
+
+@router.post("/leads", response_model=ServiceLeadRead)
+def create_service_lead(
+    lead_in: ServiceLeadCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Post a new service lead and auto-distribute to top providers."""
+    # Note: importing the models here to avoid circular dependencies if they exist, but they are already imported at the top.
+    from ...models.services import ServiceLead, LeadAssignment
+    
+    new_lead = ServiceLead(
+        user_id=current_user.id,
+        category_id=lead_in.category_id,
+        location=lead_in.location,
+        description=lead_in.description
+    )
+    db.add(new_lead)
+    db.commit()
+    db.refresh(new_lead)
+    
+    # Auto Lead Distribution Logic
+    # Find active providers in this category, sort by rating, limit to 5
+    top_profiles = db.query(ServiceProfile).filter(
+        ServiceProfile.category_id == lead_in.category_id,
+        ServiceProfile.active_status == True
+    ).order_by(desc(ServiceProfile.rating)).limit(5).all()
+    
+    for profile in top_profiles:
+        # Don't assign to self
+        if profile.provider_id == current_user.id:
+            continue
+            
+        assignment = LeadAssignment(
+            lead_id=new_lead.id,
+            provider_id=profile.provider_id,
+            status="pending"
+        )
+        db.add(assignment)
+        
+    db.commit()
+    return new_lead
+
+@router.get("/leads", response_model=List[LeadAssignmentRead])
+def get_provider_leads(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all leads assigned to the current provider."""
+    from ...models.services import LeadAssignment
+    return db.query(LeadAssignment).filter(
+        LeadAssignment.provider_id == current_user.id
+    ).order_by(desc(LeadAssignment.created_at)).all()
+
+@router.put("/leads/{assignment_id}/{status}")
+def update_lead_status(
+    assignment_id: str,
+    status: str, # 'accepted', 'rejected'
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Provider accepts or rejects a lead."""
+    if status not in ['accepted', 'rejected']:
+        raise HTTPException(status_code=400, detail="Invalid status")
+        
+    from ...models.services import LeadAssignment
+    assignment = db.query(LeadAssignment).filter(
+        LeadAssignment.id == assignment_id,
+        LeadAssignment.provider_id == current_user.id
+    ).first()
+    
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Lead assignment not found")
+        
+    assignment.status = status
+    db.commit()
+    return {"status": "success", "assignment_status": status}

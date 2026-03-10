@@ -91,3 +91,24 @@ class ServiceBooking(Base):
     provider = relationship("User", foreign_keys=[provider_id])
     service_profile = relationship("ServiceProfile", back_populates="bookings")
 
+class ServiceLead(Base):
+    __tablename__ = "service_leads"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    category_id = Column(String, ForeignKey("service_categories.id"), nullable=False)
+    location = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    assignments = relationship("LeadAssignment", back_populates="lead")
+
+class LeadAssignment(Base):
+    __tablename__ = "lead_assignments"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    lead_id = Column(String, ForeignKey("service_leads.id"), nullable=False)
+    provider_id = Column(String, ForeignKey("users.id"), nullable=False)
+    status = Column(String, default="pending") # pending, accepted, rejected
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    lead = relationship("ServiceLead", back_populates="assignments")
+
